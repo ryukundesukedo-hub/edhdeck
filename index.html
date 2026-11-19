@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EDHデッキ">
+<meta name="theme-color" content="#12162a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>EDHデッキビルダー</title>
+<style>
+:root{
+  --bg:#12162a;--bg2:#1b2140;--bg3:#262d52;--line:#343c68;--tx:#e9ebf5;--mut:#9aa1c4;
+  --acc:#f0c85a;--acc2:#5aa8f0;--bad:#f06a5a;--ok:#5ad08a;
+  --sat:env(safe-area-inset-top);--sab:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;font-size:15px}
+body{padding-top:var(--sat);padding-bottom:calc(64px + var(--sab));min-height:100vh}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:16px}
+textarea{width:100%;min-height:180px;resize:vertical}
+a{color:var(--acc2)}
+#top{position:sticky;top:0;z-index:20;background:rgba(18,22,42,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-top:calc(-1 * var(--sat));padding-top:calc(10px + var(--sat))}
+#top h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;white-space:nowrap}
+.chip.on{background:var(--acc);color:#1a1a1a;border-color:var(--acc);font-weight:700}
+.cnt.ok{color:var(--ok)} .cnt.over{color:var(--bad)}
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:rgba(27,33,64,.97);border-top:1px solid var(--line);padding-bottom:var(--sab)}
+#tabs button{flex:1;padding:8px 0 7px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut)}
+#tabs button svg{width:24px;height:24px}
+#tabs button.on{color:var(--acc)}
+.tab{display:none;padding:12px}
+.tab.on{display:block}
+.btn{background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-weight:600}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#1a1a1a}
+.btn.dan{color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.mut{color:var(--mut);font-size:13px}
+h2{font-size:15px;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+h2 .n{color:var(--mut);font-weight:400}
+.empty{text-align:center;color:var(--mut);padding:40px 16px;line-height:1.8}
+/* デッキ一覧 */
+.dlist{display:grid;gap:10px}
+.dcard{position:relative;display:flex;gap:12px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px;overflow:hidden}
+.dcard.cur{border-color:var(--acc)}
+.dcard .art{width:86px;height:62px;border-radius:9px;background:var(--bg3) center/cover;flex:none}
+.dcard b{display:block;font-size:15px;margin-bottom:3px}
+.pips{display:inline-flex;gap:3px;vertical-align:middle}
+.pip{width:14px;height:14px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.3)}
+.pW{background:#f8f2d6}.pU{background:#5aa8f0}.pB{background:#4a4552}.pR{background:#e86a4a}.pG{background:#4ab878}.pC{background:#b8b8c0}
+/* 検索 */
+.sbar{position:sticky;top:calc(53px + var(--sat));z-index:10;background:var(--bg);padding:2px 0 10px;margin:-12px -12px 0;padding:10px 12px}
+.sbar input[type=search]{flex:1;min-width:0}
+.fpanel{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;display:none;gap:10px;flex-direction:column}
+.fpanel.on{display:flex}
+.fpanel label{font-size:13px;color:var(--mut)}
+.cbtn{width:34px;height:34px;border-radius:50%;font-weight:800;border:2px solid transparent;opacity:.45}
+.cbtn.on{opacity:1;border-color:#fff}
+.cbtn[data-c=W]{background:#f8f2d6;color:#333}.cbtn[data-c=U]{background:#5aa8f0;color:#fff}.cbtn[data-c=B]{background:#4a4552;color:#fff}.cbtn[data-c=R]{background:#e86a4a;color:#fff}.cbtn[data-c=G]{background:#4ab878;color:#fff}.cbtn[data-c=C]{background:#b8b8c0;color:#333}
+.banner{background:linear-gradient(90deg,#3a2f12,#262d52);border:1px solid #6a5a2a;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:13px;display:flex;align-items:center;gap:10px}
+/* カードグリッド */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+@media (min-width:600px){.grid{grid-template-columns:repeat(5,1fr)}}
+.cell{position:relative;aspect-ratio:488/680;border-radius:5%/3.6%;overflow:hidden;background:var(--bg3);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .08s}
+.cell:active{transform:scale(.96)}
+.cell img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.cell .nm{position:absolute;inset:auto 0 0 0;padding:14px 4px 4px;font-size:10px;line-height:1.2;background:linear-gradient(transparent,rgba(0,0,0,.85));display:none}
+.cell.noimg .nm{display:block;top:0;padding-top:8px;background:var(--bg3)}
+.badge{position:absolute;top:5px;right:5px;min-width:24px;height:24px;border-radius:12px;background:var(--acc);color:#1a1a1a;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.badge.cmd{background:var(--acc2);color:#fff;font-size:11px}
+.warn{position:absolute;top:5px;left:5px;width:22px;height:22px;border-radius:11px;background:var(--bad);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.ibtn{position:absolute;bottom:4px;right:4px;width:26px;height:26px;border-radius:13px;background:rgba(0,0,0,.6);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+.more{display:block;width:100%;margin:14px 0}
+/* デッキ */
+.cmdrow{display:flex;gap:10px;margin-bottom:6px}
+.cmdrow .cell{width:42%;max-width:220px}
+.list{display:flex;flex-direction:column;gap:1px;background:var(--line);border-radius:10px;overflow:hidden}
+.li{display:flex;align-items:center;gap:8px;background:var(--bg2);padding:9px 10px;font-size:14px}
+.li .q{width:22px;text-align:right;color:var(--acc);font-weight:700}
+.li .cost{font-size:11px;color:var(--mut)}
+/* 分析 */
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--bg3);border-radius:10px;padding:9px;text-align:center}
+.kpi b{display:block;font-size:20px}
+.kpi span{font-size:11px;color:var(--mut)}
+.curve{display:flex;align-items:flex-end;gap:6px;height:130px;padding-top:16px}
+.curve .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--mut)}
+.curve .bar{width:100%;background:var(--acc2);border-radius:5px 5px 0 0;min-height:2px;position:relative}
+.curve .bar i{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;color:var(--tx);font-size:11px}
+.hbar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.hbar .l{width:118px;flex:none;font-size:12px}
+.hbar .t{flex:1;height:12px;background:var(--bg3);border-radius:6px;overflow:hidden}
+.hbar .t i{display:block;height:100%;border-radius:6px}
+.hbar .v{width:34px;text-align:right}
+.wlist{margin:0;padding-left:18px;line-height:1.7;font-size:13px}
+.wlist li.b{color:var(--bad)} .wlist li.g{color:var(--ok)}
+/* モーダル */
+#modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+#modal[hidden]{display:none}
+.sheet{background:var(--bg2);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(16px + var(--sab));border-top:1px solid var(--line)}
+.sheet h3{margin:4px 0 10px;font-size:17px}
+.dimg{display:block;width:72%;max-width:320px;margin:0 auto 10px;border-radius:4.5%/3.3%;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.otext{background:var(--bg3);border-radius:10px;padding:10px;font-size:13px;line-height:1.6;white-space:pre-wrap;margin:8px 0}
+.ms{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;border-radius:9px;font-size:10px;font-weight:800;background:#c8c8d0;color:#222;margin:0 1px;vertical-align:1px;padding:0 3px}
+.ms-W{background:#f8f2d6}.ms-U{background:#5aa8f0;color:#fff}.ms-B{background:#4a4552;color:#fff}.ms-R{background:#e86a4a;color:#fff}.ms-G{background:#4ab878;color:#fff}
+.qty{display:flex;align-items:center;justify-content:center;gap:18px;margin:12px 0}
+.qty button{width:52px;height:52px;border-radius:26px;background:var(--bg3);border:1px solid var(--line);font-size:26px;font-weight:700}
+.qty b{font-size:26px;min-width:40px;text-align:center}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:calc(76px + var(--sab));transform:translateX(-50%) translateY(20px);background:#000c;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;z-index:60;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp 0.8s linear infinite;margin:30px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.seg{display:inline-flex;background:var(--bg3);border-radius:9px;padding:2px;border:1px solid var(--line)}
+.seg button{padding:5px 11px;border-radius:7px;font-size:13px;color:var(--mut)}
+.seg button.on{background:var(--bg);color:var(--tx)}
+</style>
+</head>
+<body>
+<header id="top"><h1 id="ttl">EDHデッキビルダー</h1><button class="chip" id="curchip" data-act="tab" data-tab="deck"></button></header>
+
+<section class="tab" id="tab-decks"></section>
+<section class="tab" id="tab-search">
+  <div class="sbar">
+    <form class="row" id="sform">
+      <input type="search" id="q" placeholder="カード名(日本語OK)・Scryfall構文" autocomplete="off" enterkeyhint="search">
+      <button class="btn pri" type="submit">検索</button>
+      <button class="btn" type="button" id="ftoggle" aria-label="絞り込み">⚙︎</button>
+    </form>
+    <div class="fpanel" id="fpanel">
+      <div class="row"><label>対象</label>
+        <span class="seg" id="smode"><button type="button" data-m="name" class="on">カード名</button><button type="button" data-m="text">ルール文</button></span></div>
+      <div class="row"><label>色</label><span class="row" id="colors">
+        <button type="button" class="cbtn" data-c="W">W</button><button type="button" class="cbtn" data-c="U">U</button><button type="button" class="cbtn" data-c="B">B</button><button type="button" class="cbtn" data-c="R">R</button><button type="button" class="cbtn" data-c="G">G</button><button type="button" class="cbtn" data-c="C">C</button></span></div>
+      <div class="row"><label>タイプ</label>
+        <select id="ftype"><option value="">すべて</option><option value="creature">クリーチャー</option><option value="instant">インスタント</option><option value="sorcery">ソーサリー</option><option value="artifact">アーティファクト</option><option value="enchantment">エンチャント</option><option value="planeswalker">プレインズウォーカー</option><option value="land">土地</option><option value="battle">バトル</option><option value="legendary">伝説</option></select></div>
+      <div class="row"><label>マナ総量</label>
+        <select id="fmvop"><option value="=">＝</option><option value="<=">以下</option><option value=">=">以上</option></select>
+        <input id="fmv" type="number" inputmode="numeric" min="0" max="20" style="width:80px" placeholder="—"></div>
+      <div class="row"><label>並び順</label>
+        <select id="forder"><option value="edhrec">EDHREC人気順</option><option value="name">名前</option><option value="cmc">マナ総量</option><option value="released">新しい順</option><option value="usd">価格(高い順)</option></select></div>
+      <div class="row"><label><input type="checkbox" id="fid" checked> 統率者の固有色に限定</label></div>
+      <div class="row"><label><input type="checkbox" id="flegal" checked> 統率者戦で使用可能なカードのみ</label></div>
+      <button class="btn sm" type="button" id="freset">条件をリセット</button>
+    </div>
+  </div>
+  <div id="sbanner"></div>
+  <div class="mut" id="sinfo"></div>
+  <div class="grid" id="results"></div>
+  <div id="smore"></div>
+</section>
+<section class="tab" id="tab-deck"></section>
+<section class="tab" id="tab-stats"></section>
+
+<nav id="tabs">
+  <button data-act="tab" data-tab="decks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>デッキ一覧</button>
+  <button data-act="tab" data-tab="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg>カード検索</button>
+  <button data-act="tab" data-tab="deck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="17" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h10"/></svg>デッキ編集</button>
+  <button data-act="tab" data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>分析</button>
+</nav>
+<div id="modal" hidden></div>
+<div id="toast"></div>
+<input type="file" id="file" accept=".dck,.txt,.json,text/plain,application/json" hidden>
+
+<script>
+'use strict';
+const API = 'https://api.scryfall.com';
+const LS = 'edhdeck.v1';
+const WUBRG = ['W','U','B','R','G'];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- 保存 ---------- */
+let DB = { decks: [], cur: null, view: 'grid' };
+function load() {
+  try { const j = JSON.parse(localStorage.getItem(LS)); if (j && Array.isArray(j.decks)) DB = Object.assign(DB, j); } catch (e) {}
+}
+function save() {
+  try { localStorage.setItem(LS, JSON.stringify(DB)); } catch (e) { toast('保存できませんでした(容量不足の可能性)'); }
+}
+const deck = () => DB.decks.find(d => d.id === DB.cur) || null;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ---------- カード正規化 ---------- */
+const FRONT_ONLY = ['transform','modal_dfc','flip','adventure','meld','reversible_card'];
+function norm(c) {
+  const f = c.card_faces || [];
+  const f0 = f[0] || {};
+  const join = k => c[k] != null ? c[k] : f.map(x => x[k]).filter(Boolean).join('\n//\n');
+  const text = join('oracle_text') || '';
+  return {
+    id: c.id, name: c.name,
+    fname: FRONT_ONLY.includes(c.layout) ? (f0.name || c.name) : c.name,
+    jp: c.printed_name || f.map(x => x.printed_name).filter(Boolean).join(' // ') || '',
+    set: c.set, cn: c.collector_number,
+    img: (c.image_uris && c.image_uris.normal) || (f0.image_uris && f0.image_uris.normal) || '',
+    img2: (!c.image_uris && f[1] && f[1].image_uris && f[1].image_uris.normal) || '',
+    art: (c.image_uris && c.image_uris.art_crop) || (f0.image_uris && f0.image_uris.art_crop) || '',
+    type: c.type_line || f0.type_line || '',
+    ptype: c.printed_type_line || f0.printed_type_line || '',
+    cmc: c.cmc != null ? c.cmc : (f0.cmc || 0),
+    cost: c.mana_cost != null ? c.mana_cost : f.map(x => x.mana_cost).filter(Boolean).join(' // '),
+    ci: c.color_identity || [],
+    prod: c.produced_mana || [],
+    text, ptext: join('printed_text') || '',
+    legal: c.legalities ? c.legalities.commander : 'legal',
+    any: /A deck can have any number of cards named/i.test(text),
+    uri: c.scryfall_uri || ''
+  };
+}
+const isBasic = c => /\bBasic\b/.test(c.type);
+const multiOK = c => isBasic(c) || c.any;
+const canCmd = c => /Legendary/.test(c.type) && /Creature/.test(c.type) || /can be your commander/i.test(c.text) || /Background/.test(c.type);
+const partnerish = c => /\bPartner\b|Friends forever|Choose a Background|Doctor's companion/i.test(c.text) || /Background|Time Lord Doctor/.test(c.type);
+const dispName = c => c.jp ? c.jp : c.name;
+
+/* ---------- デッキ操作 ---------- */
+function newDeck(name) {
+  const d = { id: uid(), name: name || '新しいデッキ', commanders: [], cards: [], updated: Date.now() };
+  DB.decks.unshift(d); DB.cur = d.id; save(); return d;
+}
+const touch = d => { d.updated = Date.now(); };
+const deckCount = d => d ? d.commanders.length + d.cards.reduce((a, c) => a + c.qty, 0) : 0;
+function qtyOf(d, name) {
+  if (!d) return 0;
+  if (d.commanders.some(c => c.name === name)) return -1;
+  const c = d.cards.find(c => c.name === name); return c ? c.qty : 0;
+}
+function deckCI(d) {
+  const s = new Set(); (d ? d.commanders : []).forEach(c => c.ci.forEach(x => s.add(x)));
+  return WUBRG.filter(x => s.has(x));
+}
+function changeQty(card, n) {
+  let d = deck(); if (!d) d = newDeck();
+  if (d.commanders.some(c => c.name === card.name)) { toast('統率者に設定済みです'); return false; }
+  const ex = d.cards.find(c => c.name === card.name);
+  if (n > 0 && ex && !multiOK(ex)) { toast('シングルトン:同名カードは1枚まで'); return false; }
+  if (ex) { ex.qty += n; if (ex.qty <= 0) d.cards.splice(d.cards.indexOf(ex), 1); }
+  else if (n > 0) d.cards.push(Object.assign({}, card, { qty: n }));
+  else return false;
+  touch(d); save(); updateHeader();
+  if (n > 0) toast(`＋ ${dispName(card)}(${deckCount(d)}/100)`);
+  return true;
+}
+async function setCommander(card) {
+  let d = deck(); if (!d) d = newDeck();
+  if (d.commanders.some(c => c.name === card.name)) { toast('すでに統率者です'); return; }
+  if (!canCmd(card) && !(await ask({ title: '統率者になれないカードです', body: 'それでも統率者に設定しますか?', ok: '設定する' }))) return;
+  const add = Object.assign({}, card); delete add.qty;
+  if (d.commanders.length === 1 && partnerish(d.commanders[0]) && partnerish(card)) {
+    d.commanders.push(add);
+  } else if (d.commanders.length) {
+    const r = await ask({ title: '統率者の変更', body: `現在の統率者(${d.commanders.map(dispName).join('、')})と入れ替えますか?`, ok: '入れ替える', alt: d.commanders.length === 1 ? '2人目として追加' : null });
+    if (r === false) return;
+    if (r === 'alt') d.commanders.push(add); else d.commanders = [add];
+  } else d.commanders = [add];
+  d.cards = d.cards.filter(c => c.name !== card.name);
+  if (d.name === '新しいデッキ') d.name = d.commanders.map(c => c.fname.split(',')[0]).join(' & ');
+  touch(d); save(); updateHeader(); toast(`統率者:${dispName(card)}`);
+}
+function removeCommander(card) {
+  const d = deck(); d.commanders = d.commanders.filter(c => c.name !== card.name); touch(d); save(); updateHeader();
+}
+
+/* ---------- UI 共通 ---------- */
+let toastT;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1600); }
+const pips = ci => `<span class="pips">${(ci.length ? ci : ['C']).map(c => `<i class="pip p${c}"></i>`).join('')}</span>`;
+const sym = s => esc(s || '').replace(/\{([^}]+)\}/g, (m, x) => `<span class="ms ms-${x.length === 1 ? x : ''}">${x.replace('/', '')}</span>`);
+
+const modal = $('#modal');
+let modalResolve = null;
+function openModal(html) { modal.innerHTML = `<div class="sheet">${html}</div>`; modal.hidden = false; }
+function closeModal(v) { modal.hidden = true; modal.innerHTML = ''; if (modalResolve) { const r = modalResolve; modalResolve = null; r(v); } }
+let lpAt = 0;
+modal.addEventListener('click', e => { if (e.target === modal && Date.now() - lpAt > 700) closeModal(false); });
+function ask({ title, body = '', input = null, ok = 'OK', alt = null, danger = false }) {
+  return new Promise(res => {
+    openModal(`<h3>${esc(title)}</h3>${body ? `<p class="mut" style="font-size:14px;line-height:1.6">${esc(body)}</p>` : ''}
+      ${input !== null ? `<input id="askin" style="width:100%" value="${esc(input)}">` : ''}
+      <div class="acts" style="margin-top:14px"><button class="btn" data-r="0">キャンセル</button><button class="btn ${danger ? 'dan' : 'pri'}" data-r="1">${esc(ok)}</button>
+      ${alt ? `<button class="btn" data-r="2" style="grid-column:1/-1">${esc(alt)}</button>` : ''}</div>`);
+    modalResolve = res;
+    const inp = $('#askin'); if (inp) { inp.focus(); inp.select(); }
+    modal.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+      const r = b.dataset.r; closeModal(r === '0' ? false : r === '2' ? 'alt' : (inp ? inp.value.trim() : true));
+    });
+  });
+}
+
+/* ---------- タブ ---------- */
+let TAB = 'decks';
+function showTab(t) {
+  TAB = t;
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + t));
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  if (t === 'decks') renderDecks();
+  if (t === 'deck') renderDeck();
+  if (t === 'stats') renderStats();
+  if (t === 'search') { renderBanner(); refreshBadges(); }
+  window.scrollTo(0, 0);
+}
+function updateHeader() {
+  const d = deck(), chip = $('#curchip');
+  if (!d) { chip.innerHTML = 'デッキ未選択'; return; }
+  const n = deckCount(d);
+  chip.innerHTML = `${pips(deckCI(d))}<span style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</span><b class="cnt ${n === 100 ? 'ok' : n > 100 ? 'over' : ''}">${n}/100</b>`;
+}
+
+/* ---------- デッキ一覧 ---------- */
+function renderDecks() {
+  const el = $('#tab-decks');
+  const rows = DB.decks.map(d => {
+    const art = (d.commanders[0] && d.commanders[0].art) || '';
+    return `<div class="dcard ${d.id === DB.cur ? 'cur' : ''}" data-act="pick" data-id="${d.id}">
+      <div class="art" style="${art ? `background-image:url('${esc(art)}')` : ''}"></div>
+      <div class="grow"><b>${esc(d.name)}</b><div class="mut">${pips(deckCI(d))} ${deckCount(d)}/100枚 ・ ${new Date(d.updated).toLocaleDateString('ja-JP')}</div>
+      <div class="mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.commanders.map(dispName).join(' & ') || '統率者 未設定')}</div></div></div>`;
+  }).join('');
+  el.innerHTML = `<div class="row" style="margin-bottom:12px"><button class="btn pri" data-act="new">＋ 新規デッキ</button><button class="btn" data-act="import">インポート</button><span class="grow"></span><button class="btn sm" data-act="backup">バックアップ</button></div>
+    ${rows ? `<div class="dlist">${rows}</div>` : `<div class="empty">まだデッキがありません。<br>「新規デッキ」で作るか、PCで作った .dck ファイルや<br>Moxfield などのリストを「インポート」できます。</div>`}
+    <p class="mut" style="margin-top:22px;line-height:1.7">デッキはこのスマホの中だけに保存されます。機種変更などに備えて、ときどき「バックアップ」を取っておくと安心です。</p>`;
+}
+
+/* ---------- 検索 ---------- */
+const SF = { mode: 'name', colors: new Set(), results: [], shown: 0, next: null, busy: false, cmdMode: false, q: '' };
+function buildQuery() {
+  const parts = [];
+  let q = $('#q').value.trim();
+  const ja = /[぀-ヿ㐀-鿿ｦ-ﾟ]/.test(q);
+  if (q) {
+    if (SF.mode === 'text' && !ja && !/[:<>=]/.test(q)) parts.push(q.split(/\s+/).map(w => `o:"${w.replace(/"/g, '')}"`).join(' '));
+    else parts.push(q);
+  }
+  if (ja) parts.push('lang:ja');
+  const cs = [...SF.colors];
+  if (cs.includes('C')) parts.push('c:c'); else if (cs.length) parts.push('c>=' + cs.join('').toLowerCase());
+  const t = $('#ftype').value; if (t) parts.push('t:' + t);
+  const mv = $('#fmv').value; if (mv !== '') parts.push('mv' + $('#fmvop').value + mv);
+  if ($('#flegal').checked) parts.push('f:commander');
+  const d = deck();
+  if (SF.cmdMode) parts.push('is:commander');
+  else if ($('#fid').checked && d && d.commanders.length) { const ci = deckCI(d); parts.push('id<=' + (ci.length ? ci.join('').toLowerCase() : 'c')); }
+  return parts.join(' ');
+}
+async function doSearch(cmdMode = false) {
+  SF.cmdMode = cmdMode;
+  const q = buildQuery();
+  if (!$('#q').value.trim() && !SF.colors.size && !$('#ftype').value && $('#fmv').value === '' && !cmdMode) { toast('キーワードか条件を入れてください'); return; }
+  SF.results = []; SF.shown = 0; SF.next = null; SF.q = q;
+  $('#results').innerHTML = ''; $('#smore').innerHTML = '<div class="spin"></div>'; $('#sinfo').textContent = '';
+  document.activeElement && document.activeElement.blur();
+  const order = $('#forder').value;
+  const dir = (order === 'released' || order === 'usd') ? 'desc' : 'auto';
+  const url = `${API}/cards/search?q=${encodeURIComponent(q)}&order=${order}&dir=${dir}&unique=cards`;
+  await fetchPage(url, true);
+}
+async function fetchPage(url, first) {
+  SF.busy = true;
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    const j = await r.json();
+    if (j.object === 'error') {
+      $('#smore').innerHTML = '';
+      $('#sinfo').innerHTML = r.status === 404 ? '該当するカードが見つかりませんでした。' : `検索エラー:${esc(j.details)}`;
+      return;
+    }
+    const cards = j.data.filter(c => c.layout !== 'art_series' && c.layout !== 'token').map(norm);
+    SF.results.push(...cards); SF.next = j.has_more ? j.next_page : null;
+    if (first) $('#sinfo').textContent = `${j.total_cards.toLocaleString()}件${SF.cmdMode ? '(統率者候補)' : ''}`;
+    showMore();
+  } catch (e) {
+    $('#smore').innerHTML = ''; $('#sinfo').textContent = '通信できませんでした。電波状況を確認してください。';
+  } finally { SF.busy = false; }
+}
+function cellHTML(c, i, src) {
+  return `<div class="cell ${c.img ? '' : 'noimg'}" data-card="${i}" data-src="${src}" data-name="${esc(c.name)}">
+    ${c.img ? `<img src="${esc(c.img)}" loading="lazy" alt="">` : ''}<div class="nm">${esc(dispName(c))}</div>
+    <span class="bslot"></span>${src === 'search' ? '<span class="ibtn" data-info="1">i</span>' : ''}</div>`;
+}
+function showMore() {
+  const start = SF.shown, end = Math.min(SF.results.length, start + 60);
+  $('#results').insertAdjacentHTML('beforeend', SF.results.slice(start, end).map((c, k) => cellHTML(c, start + k, 'search')).join(''));
+  SF.shown = end; refreshBadges();
+  $('#smore').innerHTML = (SF.shown < SF.results.length || SF.next) ? '<button class="btn more" data-act="more">さらに表示</button>' : '';
+}
+function refreshBadges() {
+  const d = deck();
+  document.querySelectorAll('#results .cell').forEach(el => {
+    const q = qtyOf(d, el.dataset.name);
+    el.querySelector('.bslot').innerHTML = q === -1 ? '<span class="badge cmd">統率</span>' : q > 0 ? `<span class="badge">${q}</span>` : '';
+  });
+}
+function renderBanner() {
+  const d = deck(), b = $('#sbanner');
+  if (!d || !d.commanders.length) b.innerHTML = `<div class="banner"><span class="grow">まずは統率者を選びましょう。名前を入れて「統率者を探す」を押すと、統率者になれるカードだけを検索します。</span><button class="btn sm pri" data-act="cmdsearch">統率者を探す</button></div>`;
+  else b.innerHTML = `<div class="mut" style="margin:4px 0 8px">${pips(deckCI(d))} ${esc(d.commanders.map(dispName).join(' & '))} の固有色で検索中 ・ タップで追加 / 長押しで詳細</div>`;
+}
+
+/* ---------- カード詳細 ---------- */
+let DETAIL = null;
+function openDetail(card, src) {
+  DETAIL = { card, face: 0, src };
+  drawDetail();
+}
+function drawDetail() {
+  const { card, face } = DETAIL;
+  const d = deck(), q = qtyOf(d, card.name);
+  const img = face && card.img2 ? card.img2 : card.img;
+  const isCmd = q === -1;
+  openModal(`
+    ${img ? `<img class="dimg" src="${esc(img)}" alt="">` : ''}
+    ${card.img2 ? `<div style="text-align:center"><button class="btn sm" data-act="flip">↻ 裏面を見る</button></div>` : ''}
+    <h3>${esc(dispName(card))} <span style="font-weight:400">${sym(card.cost)}</span></h3>
+    ${card.jp ? `<div class="mut">${esc(card.name)}</div>` : ''}
+    <div class="mut">${esc(card.ptype || card.type)}</div>
+    ${card.legal !== 'legal' ? `<div style="color:var(--bad);font-size:13px;margin-top:4px">⚠ 統率者戦では使用できません(${esc(card.legal)})</div>` : ''}
+    <div class="otext">${sym(card.ptext || card.text) || '(テキストなし)'}</div>
+    ${isCmd ? `<p style="text-align:center;color:var(--acc2);font-weight:700">このデッキの統率者です</p>` :
+      `<div class="qty"><button data-act="dq" data-n="-1">−</button><b>${q}</b><button data-act="dq" data-n="1">＋</button></div>`}
+    <div class="acts">
+      ${isCmd ? `<button class="btn dan" data-act="uncmd">統率者から外す</button>` : `<button class="btn" data-act="mkcmd">統率者にする</button>`}
+      <button class="btn" data-act="prints">別の版を選ぶ</button>
+      ${card.uri ? `<a class="btn" style="text-align:center;text-decoration:none;color:var(--tx)" href="${esc(card.uri)}" target="_blank" rel="noopener">Scryfallで見る</a>` : ''}
+      <button class="btn" data-act="close">閉じる</button>
+    </div>`);
+}
+async function choosePrint() {
+  const card = DETAIL.card;
+  openModal('<h3>別の版を選ぶ</h3><div class="spin"></div>');
+  try {
+    const r = await fetch(`${API}/cards/search?q=${encodeURIComponent('!"' + card.name + '"')}&unique=prints&order=released&include_multilingual=false`);
+    const j = await r.json();
+    const list = (j.data || []).map(norm).filter(c => c.img);
+    PRINTS = list;
+    openModal(`<h3>別の版を選ぶ <span class="mut">${list.length}種</span></h3><div class="grid">${list.map((c, i) => `<div class="cell" data-print="${i}"><img src="${esc(c.img)}" loading="lazy" alt=""><span class="nm" style="display:block">${esc(c.set.toUpperCase())} #${esc(c.cn)}</span></div>`).join('')}</div><button class="btn more" data-act="back">戻る</button>`);
+  } catch (e) { toast('取得できませんでした'); drawDetail(); }
+}
+let PRINTS = [];
+function applyPrint(p) {
+  const d = deck(), old = DETAIL.card;
+  const swap = arr => { const t = arr.find(c => c.name === old.name); if (t) { const qty = t.qty; Object.assign(t, p); if (qty != null) t.qty = qty; return t; } };
+  const t = d && (swap(d.commanders) || swap(d.cards));
+  if (t) { touch(d); save(); toast(`版を変更:${p.set.toUpperCase()}`); }
+  DETAIL.card = t || p; drawDetail();
+  if (TAB === 'deck') renderDeck();
+}
+
+/* ---------- デッキ編集 ---------- */
+const GROUPS = [['Creature', 'クリーチャー'], ['Planeswalker', 'プレインズウォーカー'], ['Battle', 'バトル'], ['Instant', 'インスタント'], ['Sorcery', 'ソーサリー'], ['Artifact', 'アーティファクト'], ['Enchantment', 'エンチャント'], ['Land', '土地']];
+function groupOf(c) {
+  const t = c.type.split('//')[0];
+  if (/Creature/.test(t)) return 'Creature';
+  if (/Land/.test(t)) return 'Land';
+  for (const [k] of GROUPS) if (t.includes(k)) return k;
+  return 'Other';
+}
+function cardIssues(d, c) {
+  const ci = deckCI(d), out = [];
+  if (d.commanders.length && c.ci.some(x => !ci.includes(x))) out.push('固有色の外');
+  if (c.legal !== 'legal') out.push('使用不可');
+  if (c.qty > 1 && !multiOK(c)) out.push('重複');
+  return out;
+}
+let DECKLIST = [];
+function renderDeck() {
+  const el = $('#tab-deck'), d = deck();
+  if (!d) { el.innerHTML = `<div class="empty">デッキが選ばれていません。<br><br><button class="btn pri" data-act="new">＋ 新規デッキ</button></div>`; return; }
+  DECKLIST = [...d.commanders.map(c => Object.assign({}, c, { qty: 1, _cmd: true })), ...d.cards];
+  const n = deckCount(d);
+  let html = `<div class="row" style="margin-bottom:6px"><b class="grow" style="font-size:17px" data-act="rename">${esc(d.name)} ✎</b>
+    <span class="seg" id="vseg"><button data-act="view" data-v="grid" class="${DB.view === 'grid' ? 'on' : ''}">画像</button><button data-act="view" data-v="list" class="${DB.view === 'list' ? 'on' : ''}">リスト</button></span></div>
+    <div class="row mut" style="margin-bottom:8px">${pips(deckCI(d))}<b class="cnt ${n === 100 ? 'ok' : n > 100 ? 'over' : ''}">${n}/100</b><span class="grow"></span>
+    <button class="btn sm" data-act="export">書き出し</button><button class="btn sm" data-act="dmenu">…</button></div>`;
+  html += `<h2>統率者 <span class="n">${d.commanders.length}</span></h2>`;
+  if (d.commanders.length) html += `<div class="cmdrow">${d.commanders.map((c, i) => deckCell(c, i, d)).join('')}</div>`;
+  else html += `<div class="banner"><span class="grow">統率者が未設定です</span><button class="btn sm pri" data-act="gocmd">統率者を探す</button></div>`;
+  const groups = {};
+  d.cards.forEach((c, k) => { const g = groupOf(c); (groups[g] = groups[g] || []).push([c, k + d.commanders.length]); });
+  for (const [k, label] of [...GROUPS, ['Other', 'その他']]) {
+    const arr = groups[k]; if (!arr) continue;
+    arr.sort((a, b) => a[0].cmc - b[0].cmc || a[0].name.localeCompare(b[0].name));
+    const cnt = arr.reduce((s, [c]) => s + c.qty, 0);
+    html += `<h2>${label} <span class="n">${cnt}</span></h2>`;
+    html += DB.view === 'grid' ? `<div class="grid">${arr.map(([c, i]) => deckCell(c, i, d)).join('')}</div>`
+      : `<div class="list">${arr.map(([c, i]) => `<div class="li" data-card="${i}" data-src="deck"><span class="q">${c.qty}</span><span class="grow">${esc(dispName(c))}${cardIssues(d, c).length ? ' <span style="color:var(--bad)">⚠</span>' : ''}</span><span class="cost">${sym(c.cost)}</span></div>`).join('')}</div>`;
+  }
+  if (!d.cards.length) html += `<div class="empty">「カード検索」からカードをタップして追加しましょう。</div>`;
+  el.innerHTML = html;
+}
+function deckCell(c, i, d) {
+  const iss = c._cmd || d.commanders.includes(c) ? [] : cardIssues(d, c);
+  const isCmd = d.commanders.includes(c);
+  return `<div class="cell ${c.img ? '' : 'noimg'}" data-card="${i}" data-src="deck">${c.img ? `<img src="${esc(c.img)}" loading="lazy" alt="">` : ''}<div class="nm">${esc(dispName(c))}</div>
+    ${isCmd ? '<span class="badge cmd">統率</span>' : c.qty > 1 ? `<span class="badge">×${c.qty}</span>` : ''}${iss.length ? `<span class="warn" title="${esc(iss.join('・'))}">!</span>` : ''}</div>`;
+}
+
+/* ---------- 分析 ---------- */
+function renderStats() {
+  const el = $('#tab-stats'), d = deck();
+  if (!d) { el.innerHTML = '<div class="empty">デッキを選ぶと分析が表示されます。</div>'; return; }
+  const all = [...d.commanders.map(c => Object.assign({}, c, { qty: 1 })), ...d.cards];
+  const total = deckCount(d);
+  const lands = d.cards.filter(c => groupOf(c) === 'Land').reduce((s, c) => s + c.qty, 0);
+  const spells = d.cards.filter(c => groupOf(c) !== 'Land');
+  const nSp = spells.reduce((s, c) => s + c.qty, 0);
+  const avg = nSp ? spells.reduce((s, c) => s + c.cmc * c.qty, 0) / nSp : 0;
+  const curve = Array(8).fill(0);
+  spells.forEach(c => { curve[Math.min(7, Math.floor(c.cmc))] += c.qty; });
+  const mx = Math.max(1, ...curve);
+  const pip = { W: 0, U: 0, B: 0, R: 0, G: 0 }, prod = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  all.forEach(c => {
+    (c.cost.match(/\{[^}]+\}/g) || []).forEach(s => WUBRG.forEach(x => { if (s.includes(x)) pip[x] += c.qty; }));
+    if (groupOf(c) === 'Land') (c.prod || []).forEach(x => { if (x in prod) prod[x] += c.qty; });
+  });
+  const ramp = d.cards.filter(c => groupOf(c) !== 'Land' && (c.prod || []).length).reduce((s, c) => s + c.qty, 0);
+  const draw = d.cards.filter(c => /draw (a|two|three|X|that many|cards)|draws? cards/i.test(c.text)).reduce((s, c) => s + c.qty, 0);
+  const removal = d.cards.filter(c => /(destroy|exile) target|deals? \d+ damage to (any|target)|return target .* to (its|their) owner's hand/i.test(c.text)).reduce((s, c) => s + c.qty, 0);
+  const wipes = d.cards.filter(c => /(destroy|exile) all|each (creature|player sacrifices)|all creatures get -/i.test(c.text)).reduce((s, c) => s + c.qty, 0);
+  const tutors = d.cards.filter(c => /search your library for (a|an|up to)(?![^.]*basic land)(?![^.]*land card)/i.test(c.text)).reduce((s, c) => s + c.qty, 0);
+
+  const warns = [];
+  if (!d.commanders.length) warns.push(['b', '統率者が設定されていません']);
+  if (total !== 100) warns.push(['b', `合計が${total}枚です(あと${100 - total > 0 ? (100 - total) + '枚必要' : (total - 100) + '枚多い'})`]);
+  if (d.commanders.length === 2 && !(partnerish(d.commanders[0]) && partnerish(d.commanders[1]))) warns.push(['b', '2人の統率者の組み合わせ(共闘など)を確認してください']);
+  d.cards.forEach(c => { const iss = cardIssues(d, c); if (iss.length) warns.push(['b', `${dispName(c)}:${iss.join('・')}`]); });
+  d.commanders.forEach(c => { if (c.legal !== 'legal') warns.push(['b', `${dispName(c)}:統率者戦で使用不可`]); });
+  if (!warns.length) warns.push(['g', 'ルール上の問題は見つかりませんでした']);
+
+  const col = { W: '#f8f2d6', U: '#5aa8f0', B: '#8a8496', R: '#e86a4a', G: '#4ab878', C: '#b8b8c0' };
+  const jpc = { W: '白', U: '青', B: '黒', R: '赤', G: '緑', C: '無色' };
+  const pmx = Math.max(1, ...Object.values(pip)), lmx = Math.max(1, ...Object.values(prod));
+  const ci = deckCI(d);
+  const tcounts = [...GROUPS, ['Other', 'その他']].map(([k, l]) => [l, d.cards.filter(c => groupOf(c) === k).reduce((s, c) => s + c.qty, 0)]);
+  const tmx = Math.max(1, ...tcounts.map(x => x[1]));
+  el.innerHTML = `
+    <div class="card"><div class="kpis">
+      <div class="kpi"><b class="cnt ${total === 100 ? 'ok' : total > 100 ? 'over' : ''}">${total}</b><span>合計枚数</span></div>
+      <div class="kpi"><b>${lands}</b><span>土地</span></div>
+      <div class="kpi"><b>${avg.toFixed(2)}</b><span>平均マナ総量</span></div>
+      <div class="kpi"><b>${ramp}</b><span>マナ加速</span></div>
+      <div class="kpi"><b>${draw}</b><span>ドロー</span></div>
+      <div class="kpi"><b>${removal}</b><span>除去</span></div>
+      <div class="kpi"><b>${wipes}</b><span>全体除去</span></div>
+      <div class="kpi"><b>${tutors}</b><span>サーチ</span></div>
+      <div class="kpi"><b>${nSp}</b><span>土地以外</span></div>
+    </div><p class="mut" style="margin:8px 0 0">※マナ加速〜サーチはルール文からの自動判定の目安です</p></div>
+    <div class="card"><b>チェック</b><ul class="wlist">${warns.map(([k, t]) => `<li class="${k}">${esc(t)}</li>`).join('')}</ul></div>
+    <div class="card"><b>マナカーブ(土地以外)</b><div class="curve">${curve.map((v, i) => `<div class="col"><div class="bar" style="height:${v / mx * 100}%"><i>${v || ''}</i></div>${i === 7 ? '7+' : i}</div>`).join('')}</div></div>
+    <div class="card"><b>色の配分</b>
+      <div class="mut" style="margin:8px 0 2px">マナコストのシンボル数</div>
+      ${WUBRG.filter(x => pip[x] || ci.includes(x)).map(x => `<div class="hbar"><span class="l">${jpc[x]}</span><span class="t"><i style="width:${pip[x] / pmx * 100}%;background:${col[x]}"></i></span><span class="v">${pip[x]}</span></div>`).join('') || '<div class="mut">—</div>'}
+      <div class="mut" style="margin:12px 0 2px">その色を出せる土地の枚数</div>
+      ${['W', 'U', 'B', 'R', 'G', 'C'].filter(x => prod[x] || ci.includes(x)).map(x => `<div class="hbar"><span class="l">${jpc[x]}</span><span class="t"><i style="width:${prod[x] / lmx * 100}%;background:${col[x]}"></i></span><span class="v">${prod[x]}</span></div>`).join('') || '<div class="mut">—</div>'}
+    </div>
+    <div class="card"><b>タイプ別</b>${tcounts.map(([l, v]) => v ? `<div class="hbar"><span class="l">${l}</span><span class="t"><i style="width:${v / tmx * 100}%;background:var(--acc)"></i></span><span class="v">${v}</span></div>` : '').join('')}</div>`;
+}
+
+/* ---------- 書き出し / 読み込み ---------- */
+function toForge(d, withSet = true) {
+  const line = c => `${c.qty || 1} ${c.fname}${withSet && c.set ? '|' + c.set.toUpperCase() : ''}`;
+  return `[metadata]\nName=${d.name}\n[Commander]\n${d.commanders.map(line).join('\n')}\n[Main]\n${d.cards.map(line).join('\n')}\n`;
+}
+function toText(d) {
+  const line = c => `${c.qty || 1} ${c.name} (${(c.set || '').toUpperCase()}) ${c.cn || ''}`.trim();
+  return `Commander\n${d.commanders.map(line).join('\n')}\n\nDeck\n${d.cards.map(line).join('\n')}\n`;
+}
+const safeFile = s => s.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60) || 'deck';
+async function shareFile(name, text, type = 'text/plain') {
+  const file = new File([text], name, { type });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); toast('コピーしました'); }
+  catch (e) { openModal(`<h3>コピー</h3><textarea readonly>${esc(t)}</textarea><button class="btn more" data-act="close">閉じる</button>`); }
+}
+function exportMenu() {
+  const d = deck(); if (!d) return;
+  openModal(`<h3>書き出し</h3>
+    <p class="mut" style="line-height:1.6">PCのアプリ(Forge系)へは .dck ファイルで渡せます。共有シートから AirDrop・iCloud Drive などで PC に送り、Forge のデッキフォルダ(commander)に置いてください。</p>
+    <div class="acts">
+      <button class="btn pri" data-act="ex-dck" style="grid-column:1/-1">.dck ファイルを共有(PC用)</button>
+      <button class="btn" data-act="ex-dckcopy">.dck 形式をコピー</button>
+      <button class="btn" data-act="ex-text">テキストをコピー<br><span class="mut">Moxfield等</span></button>
+      <button class="btn" data-act="close" style="grid-column:1/-1">閉じる</button>
+    </div>`);
+}
+function parseList(txt) {
+  let section = 'main', name = null; const items = [];
+  for (const raw of txt.split(/\r?\n/)) {
+    let line = raw.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+    let m = line.match(/^\[(.+)\]$/);
+    if (m) { const s = m[1].toLowerCase(); section = s === 'commander' ? 'cmd' : s === 'main' ? 'main' : s === 'metadata' ? 'meta' : 'skip'; continue; }
+    if (section === 'meta') { const mm = line.match(/^Name=(.*)$/i); if (mm) name = mm[1].trim(); continue; }
+    if (/^(commanders?|統率者)\s*:?$/i.test(line)) { section = 'cmd'; continue; }
+    if (/^(deck|main|mainboard|メイン|デッキ|companion)\s*:?$/i.test(line)) { section = 'main'; continue; }
+    if (/^(sideboard|maybeboard|considering|tokens?)\s*:?$/i.test(line)) { section = 'skip'; continue; }
+    if (section === 'skip') continue;
+    let qty = 1, rest = line;
+    m = line.match(/^(\d+)\s*[xX]?\s+(.+)$/); if (m) { qty = +m[1]; rest = m[2]; }
+    let set = null, cn = null;
+    if (rest.includes('|')) { const p = rest.split('|'); rest = p[0]; set = p[1]; }
+    else { const mm = rest.match(/^(.*?)\s+\(([A-Za-z0-9]{2,6})\)(?:\s+(\S+))?/); if (mm) { rest = mm[1]; set = mm[2]; cn = mm[3] || null; } }
+    rest = rest.replace(/\s+\*[A-Z]+\*\s*$/, '').replace(/\s+\[[^\]]*\]\s*$/, '').trim();
+    if (cn && /^\*/.test(cn)) cn = null;
+    if (rest) items.push({ qty, name: rest, set: set ? set.toLowerCase() : null, cn, cmd: section === 'cmd' });
+  }
+  return { name, items };
+}
+const lc = s => s.toLowerCase().replace(/[’']/g, "'");
+function matches(card, it, loose) {
+  if (!loose && it.cn && it.set && card.set === it.set && card.collector_number === it.cn) return true;
+  const names = [card.name, ...(card.card_faces || []).map(f => f.name)].map(lc);
+  return names.includes(lc(it.name)) && (loose || !it.set || card.set === it.set);
+}
+async function resolveItems(items, progress) {
+  const found = new Map();
+  let done = 0;
+  const run = async (list, loose) => {
+    const miss = [];
+    const ident = it => loose || !it.set ? { name: it.name } : it.cn ? { set: it.set, collector_number: it.cn } : { name: it.name, set: it.set };
+    for (let i = 0; i < list.length; i += 75) {
+      const chunk = list.slice(i, i + 75);
+      const r = await fetch(`${API}/cards/collection`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifiers: chunk.map(ident) }) });
+      const j = await r.json();
+      const data = j.data || [];
+      chunk.forEach(it => { const c = data.find(c => matches(c, it, loose)); if (c) { found.set(it, c); done++; } else miss.push(it); });
+      progress && progress(done, items.length);
+      await sleep(120);
+    }
+    return miss;
+  };
+  let miss = await run(items, false);
+  const retry = miss.filter(it => it.set);
+  miss = miss.filter(it => !it.set);
+  if (retry.length) miss.push(...await run(retry, true));
+  return { found, miss };
+}
+function importDialog(prefill = '') {
+  openModal(`<h3>インポート</h3>
+    <p class="mut" style="line-height:1.6">Forge の .dck ファイル、または Moxfield・Archidekt・MTGアリーナ形式のテキストを読み込めます。</p>
+    <button class="btn" data-act="pickfile" style="width:100%;margin-bottom:8px">ファイルを選ぶ(.dck / .txt)</button>
+    <textarea id="imptxt" placeholder="1 Sol Ring&#10;1 Arcane Signet (CMR) 297&#10;…">${esc(prefill)}</textarea>
+    <div class="acts"><button class="btn" data-act="close">キャンセル</button><button class="btn pri" data-act="doimport">読み込む</button></div>`);
+}
+async function doImport(txt) {
+  const { name, items } = parseList(txt);
+  if (!items.length) { toast('カードが見つかりませんでした'); return; }
+  openModal(`<h3>読み込み中…</h3><div class="spin"></div><p class="mut" id="impp" style="text-align:center"></p>`);
+  try {
+    const { found, miss } = await resolveItems(items, (a, b) => { const p = $('#impp'); if (p) p.textContent = `${a} / ${b}`; });
+    const d = { id: uid(), name: name || 'インポートしたデッキ', commanders: [], cards: [], updated: Date.now() };
+    for (const it of items) {
+      const c = found.get(it); if (!c) continue;
+      const n = norm(c);
+      if (it.cmd) { if (!d.commanders.some(x => x.name === n.name)) d.commanders.push(n); continue; }
+      const ex = d.cards.find(x => x.name === n.name);
+      if (ex) ex.qty += it.qty; else d.cards.push(Object.assign(n, { qty: it.qty }));
+    }
+    if (!name && d.commanders.length) d.name = d.commanders.map(c => c.fname.split(',')[0]).join(' & ');
+    DB.decks.unshift(d); DB.cur = d.id; save(); updateHeader();
+    openModal(`<h3>読み込み完了</h3><p>${esc(d.name)}:${deckCount(d)}枚</p>
+      ${miss.length ? `<p style="color:var(--bad)">見つからなかったカード(${miss.length}件):</p><div class="otext">${esc(miss.map(m => m.name).join('\n'))}</div>` : ''}
+      ${!d.commanders.length ? '<p class="mut">統率者が指定されていませんでした。デッキ編集でカードを長押しして「統率者にする」を選んでください。</p>' : ''}
+      <button class="btn pri more" data-act="godeck">デッキを開く</button>`);
+  } catch (e) { openModal(`<h3>読み込みに失敗しました</h3><p class="mut">通信状況を確認して、もう一度お試しください。</p><button class="btn more" data-act="close">閉じる</button>`); }
+}
+let fileMode = 'import';
+$('#file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const txt = await f.text();
+  if (fileMode === 'restore' || /^\s*\{/.test(txt)) {
+    try {
+      const j = JSON.parse(txt); if (!Array.isArray(j.decks)) throw 0;
+      const ids = new Set(DB.decks.map(d => d.id)); let n = 0;
+      j.decks.forEach(d => { if (!ids.has(d.id)) { DB.decks.push(d); n++; } });
+      save(); closeModal(); renderDecks(); toast(`${n}個のデッキを復元しました`);
+    } catch (err) { toast('バックアップファイルを読めませんでした'); }
+    return;
+  }
+  if (!/\.(dck|txt)$/i.test(f.name) && f.type && !f.type.startsWith('text')) { toast('対応していないファイルです'); return; }
+  const ta = $('#imptxt'); if (ta) ta.value = txt; else importDialog(txt);
+});
+
+/* ---------- 操作の振り分け ---------- */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act],[data-print],[data-card]');
+  if (!t) return;
+  if (t.dataset.print != null) { applyPrint(PRINTS[+t.dataset.print]); return; }
+  if (t.dataset.card != null && !t.dataset.act) { cardTap(t, e); return; }
+  const a = t.dataset.act, d = deck();
+  switch (a) {
+    case 'tab': showTab(t.dataset.tab); break;
+    case 'new': { const n = await ask({ title: '新規デッキ', input: '新しいデッキ', ok: '作成' }); if (n) { newDeck(n); updateHeader(); showTab('search'); } break; }
+    case 'pick': DB.cur = t.dataset.id; save(); updateHeader(); showTab('deck'); break;
+    case 'import': fileMode = 'import'; importDialog(); break;
+    case 'pickfile': fileMode = 'import'; $('#file').click(); break;
+    case 'doimport': doImport($('#imptxt').value); break;
+    case 'godeck': closeModal(); showTab('deck'); break;
+    case 'backup': openModal(`<h3>バックアップ</h3><p class="mut">すべてのデッキを1つのファイルに保存・復元します。</p><div class="acts"><button class="btn pri" data-act="bk-save">保存する</button><button class="btn" data-act="bk-load">復元する</button><button class="btn" data-act="close" style="grid-column:1/-1">閉じる</button></div>`); break;
+    case 'bk-save': shareFile(`edh-decks-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ app: 'edhdeck', v: 1, decks: DB.decks }), 'application/json'); break;
+    case 'bk-load': fileMode = 'restore'; $('#file').click(); break;
+    case 'more': if (SF.shown < SF.results.length) showMore(); else if (SF.next && !SF.busy) { $('#smore').innerHTML = '<div class="spin"></div>'; await sleep(100); fetchPage(SF.next, false); } break;
+    case 'cmdsearch': doSearch(true); break;
+    case 'gocmd': showTab('search'); $('#q').focus(); break;
+    case 'view': DB.view = t.dataset.v; save(); renderDeck(); break;
+    case 'rename': { const n = await ask({ title: 'デッキ名', input: d.name, ok: '変更' }); if (n) { d.name = n; touch(d); save(); updateHeader(); renderDeck(); } break; }
+    case 'dmenu': openModal(`<h3>${esc(d.name)}</h3><div class="acts"><button class="btn" data-act="rename2">名前を変更</button><button class="btn" data-act="dup">複製</button><button class="btn dan" data-act="del" style="grid-column:1/-1">デッキを削除</button><button class="btn" data-act="close" style="grid-column:1/-1">閉じる</button></div>`); break;
+    case 'rename2': { closeModal(); const n = await ask({ title: 'デッキ名', input: d.name, ok: '変更' }); if (n) { d.name = n; touch(d); save(); updateHeader(); renderDeck(); } break; }
+    case 'dup': { const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.name += '(コピー)'; c.updated = Date.now(); DB.decks.unshift(c); DB.cur = c.id; save(); closeModal(); updateHeader(); renderDeck(); toast('複製しました'); break; }
+    case 'del': { closeModal(); if (await ask({ title: 'デッキを削除', body: `「${d.name}」を削除します。元に戻せません。`, ok: '削除', danger: true })) { DB.decks = DB.decks.filter(x => x !== d); DB.cur = DB.decks[0] ? DB.decks[0].id : null; save(); updateHeader(); showTab('decks'); } break; }
+    case 'export': exportMenu(); break;
+    case 'ex-dck': shareFile(safeFile(d.name) + '.dck', toForge(d)); break;
+    case 'ex-dckcopy': copyText(toForge(d)); break;
+    case 'ex-text': copyText(toText(d)); break;
+    case 'close': closeModal(); break;
+    case 'flip': DETAIL.face = DETAIL.face ? 0 : 1; drawDetail(); break;
+    case 'dq': changeQty(DETAIL.card, +t.dataset.n); drawDetail(); afterChange(); break;
+    case 'mkcmd': { const c = DETAIL.card; closeModal(); await setCommander(c); afterChange(); renderBanner(); break; }
+    case 'uncmd': removeCommander(DETAIL.card); closeModal(); afterChange(); renderBanner(); break;
+    case 'prints': choosePrint(); break;
+    case 'back': drawDetail(); break;
+  }
+});
+function afterChange() { if (TAB === 'deck') renderDeck(); if (TAB === 'stats') renderStats(); refreshBadges(); }
+function cardOf(el) { return el.dataset.src === 'search' ? SF.results[+el.dataset.card] : DECKLIST[+el.dataset.card]; }
+function cardTap(el, e) {
+  if (lpFired) { lpFired = false; return; }
+  const c = cardOf(el); if (!c) return;
+  if (el.dataset.src === 'search' && !e.target.closest('[data-info]')) {
+    if (SF.cmdMode && !(deck() && deck().commanders.length)) { setCommander(c).then(() => { refreshBadges(); renderBanner(); }); return; }
+    if (changeQty(c, 1)) refreshBadges();
+  } else {
+    const real = c._cmd ? deck().commanders.find(x => x.name === c.name) : c;
+    openDetail(real, el.dataset.src);
+  }
+}
+// 長押しで詳細
+let lpT = null, lpFired = false, lpX = 0, lpY = 0;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-card]'); if (!el) return;
+  lpFired = false; lpX = e.clientX; lpY = e.clientY;
+  lpT = setTimeout(() => { lpFired = true; lpAt = Date.now(); const c = cardOf(el); if (c) { if (navigator.vibrate) navigator.vibrate(15); openDetail(c._cmd ? deck().commanders.find(x => x.name === c.name) : c, el.dataset.src); } }, 450);
+});
+const lpCancel = () => { clearTimeout(lpT); };
+document.addEventListener('pointerup', lpCancel);
+document.addEventListener('pointercancel', () => { lpCancel(); });
+document.addEventListener('pointermove', e => { if (Math.abs(e.clientX - lpX) > 8 || Math.abs(e.clientY - lpY) > 8) lpCancel(); });
+document.addEventListener('contextmenu', e => { if (e.target.closest('[data-card]')) e.preventDefault(); });
+// スクロールで長押し判定が残らないように
+window.addEventListener('scroll', () => { lpCancel(); }, { passive: true });
+
+/* ---------- 検索フォーム ---------- */
+$('#sform').addEventListener('submit', e => { e.preventDefault(); doSearch(false); });
+$('#ftoggle').onclick = () => $('#fpanel').classList.toggle('on');
+$('#smode').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; SF.mode = b.dataset.m; $('#smode').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+$('#colors').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if (!b) return; const c = b.dataset.c;
+  if (SF.colors.has(c)) SF.colors.delete(c); else { if (c === 'C') SF.colors.clear(); else SF.colors.delete('C'); SF.colors.add(c); }
+  $('#colors').querySelectorAll('[data-c]').forEach(x => x.classList.toggle('on', SF.colors.has(x.dataset.c)));
+});
+$('#freset').onclick = () => { SF.colors.clear(); $('#colors').querySelectorAll('[data-c]').forEach(x => x.classList.remove('on')); $('#ftype').value = ''; $('#fmv').value = ''; $('#forder').value = 'edhrec'; $('#fid').checked = true; $('#flegal').checked = true; };
+
+/* ---------- 起動 ---------- */
+load();
+if (DB.cur && !deck()) DB.cur = DB.decks[0] ? DB.decks[0].id : null;
+updateHeader();
+showTab(DB.decks.length ? 'deck' : 'decks');
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
